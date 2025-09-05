@@ -30,6 +30,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		9B4EB8592E6B11E4005F68C3 /* doc */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = doc;
+			sourceTree = "<group>";
+		};
 		9BC648B22E6B0DFB00B464C1 /* bubbleSky */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = bubbleSky;
@@ -75,6 +80,7 @@
 		9BC648A72E6B0DFB00B464C1 = {
 			isa = PBXGroup;
 			children = (
+				9B4EB8592E6B11E4005F68C3 /* doc */,
 				9BC648B22E6B0DFB00B464C1 /* bubbleSky */,
 				9BC648CC2E6B0DFD00B464C1 /* bubbleSkyTests */,
 				9BC648D62E6B0DFD00B464C1 /* bubbleSkyUITests */,
@@ -108,6 +114,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				9B4EB8592E6B11E4005F68C3 /* doc */,
 				9BC648B22E6B0DFB00B464C1 /* bubbleSky */,
 			);
 			name = bubbleSky;
