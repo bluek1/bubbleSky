@@ -13,23 +13,30 @@ enum BubbleType: Int, CaseIterable {
     case superBig = 8  // 새로 추가된 더 큰 비눗방울
     case ultraBig = 9  // 새로 추가된 가장 큰 비눗방울
     
-    /// 비눗방울 반지름 값 (30% 증가 후 10% 감소 = 17% 증가)
+    /// 비눗방울 반지름 값 (tiny는 50% 증가)
     var radius: CGFloat {
-        return CGFloat(rawValue * 10) * 1.17
+        let baseRadius = CGFloat(rawValue * 10) * 1.17
+        
+        // tiny 방울만 50% 크게 만들기
+        if self == .tiny {
+            return baseRadius * 1.5
+        } else {
+            return baseRadius
+        }
     }
     
-    /// 비눗방울 색상 정의
+    /// 비눗방울 색상 정의 - 여름 느낌의 투명한 색상
     var color: UIColor {
         switch self {
-        case .tiny:   return UIColor.systemBlue.withAlphaComponent(0.3)
-        case .small:  return UIColor.systemGreen.withAlphaComponent(0.3)
-        case .medium: return UIColor.systemYellow.withAlphaComponent(0.3)
-        case .large:  return UIColor.systemOrange.withAlphaComponent(0.3)
-        case .huge:   return UIColor.systemRed.withAlphaComponent(0.3)
-        case .giant:  return UIColor.systemPurple.withAlphaComponent(0.3)
-        case .mega:   return UIColor.systemPink.withAlphaComponent(0.3)
-        case .superBig:  return UIColor.systemCyan.withAlphaComponent(0.3)
-        case .ultraBig:  return UIColor.systemMint.withAlphaComponent(0.3)
+        case .tiny:      return UIColor(red: 0.2, green: 0.7, blue: 1.0, alpha: 0.25)   // 여름 하늘 파랑
+        case .small:     return UIColor(red: 0.3, green: 0.9, blue: 0.4, alpha: 0.25)   // 여름 잔디 초록
+        case .medium:    return UIColor(red: 1.0, green: 0.9, blue: 0.3, alpha: 0.25)   // 여름 햇살 노랑
+        case .large:     return UIColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 0.25)   // 여름 석양 오렌지
+        case .huge:      return UIColor(red: 1.0, green: 0.3, blue: 0.4, alpha: 0.25)   // 여름 수박 빨강
+        case .giant:     return UIColor(red: 0.6, green: 0.4, blue: 1.0, alpha: 0.25)   // 여름 라벤더 보라
+        case .mega:      return UIColor(red: 1.0, green: 0.4, blue: 0.8, alpha: 0.25)   // 여름 코스모스 분홍
+        case .superBig:  return UIColor(red: 0.2, green: 1.0, blue: 0.8, alpha: 0.25)   // 여름 바다 시안
+        case .ultraBig:  return UIColor(red: 0.4, green: 1.0, blue: 0.6, alpha: 0.25)   // 여름 민트
         }
     }
     

@@ -1,0 +1,46 @@
+# Xcode & build artifacts
+# 빌드 출력과 임시 파일을 무시합니다.
+/build/
+/Release-iphoneos/
+/DerivedData/
+
+# Xcode project user settings
+*.xcuserdatad/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+
+# Xcode generated app / dSYM / swiftmodule
+*.app
+*.ipa
+*.dSYM/
+*.swiftmodule
+
+# Swift Package Manager
+.build/
+Packages/
+/.swiftpm/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# Metadata
+.DS_Store
+*.orig
+*.mode1v3
+*.pbxuser
+*.perspectivev3
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+
+# JetBrains
+.idea/
+
+# temporary swap files
+*~
+.#*
