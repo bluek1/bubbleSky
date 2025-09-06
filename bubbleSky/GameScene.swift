@@ -6,6 +6,7 @@
 //
 
 import SpriteKit
+import Foundation
 
 class GameScene: SKScene {
     
@@ -18,7 +19,7 @@ class GameScene: SKScene {
     private var currentBubble: BubbleNode?
     
     /// 발사 캐릭터 노드
-    private var launchCharacter: SKShapeNode?
+    private var launchCharacter: CharacterNode?
     
     /// 곡선형 상단 경계
     private var topCurvedBoundary: SKShapeNode?
@@ -49,8 +50,9 @@ class GameScene: SKScene {
     private var consecutiveBubbleCount = 0
     private var lastBubbleType: BubbleType?
     
-    /// 패닝 제스처 관련
-    private var panGestureRecognizer: UIPanGestureRecognizer?
+    /// 터치 관련 (패닝 대체)
+    private var isDragging = false
+    private var currentTouchLocation: CGPoint = .zero
     
     /// 플레이 영역 정보
     private var playAreaBounds: CGRect = CGRect.zero
@@ -73,11 +75,11 @@ class GameScene: SKScene {
     }
     
     override func didMove(to view: SKView) {
+        setupSummerBackground()
         setupPhysicsWorld()
         setupPlayArea()
         setupUI()
         setupLaunchSystem()
-        setupPanGesture()
         
         // 게임 시작
         gameManager.startNewGame()
@@ -85,6 +87,64 @@ class GameScene: SKScene {
     
     
     // MARK: - Setup Methods
+    
+    /// 여름 느낌의 배경 설정
+    private func setupSummerBackground() {
+        // 여름 하늘 그라데이션 배경 생성
+        let backgroundNode = SKShapeNode(rect: CGRect(x: -size.width/2, y: -size.height/2, width: size.width, height: size.height))
+        
+        // 여름 하늘색으로 설정 (하늘색에서 연한 청록색으로 그라데이션)
+        backgroundColor = UIColor(red: 0.5, green: 0.8, blue: 1.0, alpha: 1.0)  // 여름 하늘색
+        
+        // 구름 효과 추가 (선택사항)
+        addFloatingClouds()
+        
+        backgroundNode.zPosition = -100
+        addChild(backgroundNode)
+    }
+    
+    /// 떠다니는 구름 효과 추가
+    private func addFloatingClouds() {
+        let cloudCount = 3
+        
+        for i in 0..<cloudCount {
+            let cloud = createCloud()
+            
+            // 구름 위치 설정 (화면 상단 영역)
+            let randomX = CGFloat.random(in: -size.width/2...size.width/2)
+            let randomY = CGFloat.random(in: size.height/4...size.height/2)
+            cloud.position = CGPoint(x: randomX, y: randomY)
+            
+            // 구름 애니메이션 (천천히 좌우로 이동)
+            let moveAction = SKAction.moveBy(x: CGFloat.random(in: -50...50), y: 0, duration: TimeInterval.random(in: 8...15))
+            let reverseAction = moveAction.reversed()
+            let floatAction = SKAction.sequence([moveAction, reverseAction])
+            let repeatAction = SKAction.repeatForever(floatAction)
+            
+            cloud.run(repeatAction)
+            cloud.zPosition = -50
+            addChild(cloud)
+        }
+    }
+    
+    /// 구름 모양 생성
+    private func createCloud() -> SKShapeNode {
+        let cloudPath = CGMutablePath()
+        
+        // 간단한 구름 모양 (3개의 원을 조합)
+        let centerRadius: CGFloat = 25
+        let sideRadius: CGFloat = 20
+        
+        cloudPath.addEllipse(in: CGRect(x: -centerRadius, y: -centerRadius/2, width: centerRadius*2, height: centerRadius))
+        cloudPath.addEllipse(in: CGRect(x: -centerRadius*1.5, y: -sideRadius/2, width: sideRadius*2, height: sideRadius))
+        cloudPath.addEllipse(in: CGRect(x: centerRadius*0.5, y: -sideRadius/2, width: sideRadius*2, height: sideRadius))
+        
+        let cloud = SKShapeNode(path: cloudPath)
+        cloud.fillColor = UIColor.white.withAlphaComponent(0.7)
+        cloud.strokeColor = UIColor.clear
+        
+        return cloud
+    }
     
     /// 물리 월드 설정
     private func setupPhysicsWorld() {
@@ -260,7 +320,7 @@ class GameScene: SKScene {
             width: screenWidth,
             height: panelHeight
         ))
-        infoPanel.fillColor = UIColor.systemBlue.withAlphaComponent(0.9)
+        infoPanel.fillColor = SKColor.systemBlue.withAlphaComponent(0.9)
         infoPanel.strokeColor = .clear
         infoPanel.zPosition = 5
         addChild(infoPanel)
@@ -322,18 +382,14 @@ class GameScene: SKScene {
         createNewBubble()
     }
     
-    /// 발사 캐릭터 노드 생성 (플레이 영역 아래쪽)
+    /// 발사 캐릭터 노드 생성 (화면 하단)
     private func setupLaunchCharacter() {
         let screenHeight = size.height
-        let playAreaHeight = screenHeight * 0.8
-        let playAreaY = -playAreaHeight/2 + screenHeight * 0.05
         
-        let characterSize: CGFloat = 40.0
-        launchCharacter = SKShapeNode(circleOfRadius: characterSize/2)
-        launchCharacter?.fillColor = .systemGray
-        launchCharacter?.strokeColor = .systemGray2
-        launchCharacter?.lineWidth = 2.0
-        launchCharacter?.position = CGPoint(x: 0, y: playAreaY - 40)  // 플레이 영역 아래
+        // 새로운 캐릭터 노드 생성
+        launchCharacter = CharacterNode()
+        // 화면 하단에서 80포인트 위에 위치
+        launchCharacter?.position = CGPoint(x: 0, y: -screenHeight/2 + 80)
         launchCharacter?.zPosition = 20
         addChild(launchCharacter!)
     }
@@ -359,52 +415,27 @@ class GameScene: SKScene {
         }
         
         lastBubbleType = randomType
-        currentBubble = BubbleNode(type: randomType)
         
-        if let bubble = currentBubble, let character = launchCharacter {
-            let screenHeight = size.height
-            let playAreaHeight = screenHeight * 0.8
-            let playAreaY = -playAreaHeight/2 + screenHeight * 0.05
-            
-            // 플레이 영역 하단에서 시작
-            bubble.position = CGPoint(x: character.position.x, y: playAreaY + 50)
-            bubble.zPosition = 15
-            addChild(bubble)
+        // 캐릭터 비눗방울 생성 애니메이션 실행
+        launchCharacter?.performBubbleCreationAnimation { [weak self] in
+            // 애니메이션 완료 후 비눗방울 생성
+            self?.createBubbleAfterAnimation(type: randomType)
         }
     }
     
-    /// 패닝 제스처 설정
-    private func setupPanGesture() {
-        panGestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(handlePanGesture(_:)))
-        view?.addGestureRecognizer(panGestureRecognizer!)
-    }
-    
-    /// 패닝 제스처 처리 (플레이 영역 너비에 맞게 제한)
-    @objc private func handlePanGesture(_ gesture: UIPanGestureRecognizer) {
-        guard gameManager.isGameActive, let bubble = currentBubble else { return }
+    /// 애니메이션 후 실제 비눗방울 생성
+    private func createBubbleAfterAnimation(type: BubbleType) {
+        currentBubble = BubbleNode(type: type)
         
-        let location = gesture.location(in: view!)
-        let sceneLocation = convertPoint(fromView: location)
-        
-        switch gesture.state {
-        case .began:
-            initialTouchPosition = sceneLocation
+        if let bubble = currentBubble, let character = launchCharacter {
+            // 캐릭터 바로 위에서 시작
+            bubble.position = CGPoint(x: character.position.x, y: character.position.y + 60)
+            bubble.zPosition = 15
             
-        case .changed:
-            // 플레이 영역 너비에 맞게 좌우 이동 제한
-            let playAreaWidth = size.width * 0.7
-            let maxX = playAreaWidth * 0.4  // 플레이 영역의 80% 범위
-            let minX = -playAreaWidth * 0.4
-            let newX = max(minX, min(maxX, sceneLocation.x))
+            // 표정 설정 (Phase 2.2 테스트)
+            // bubble.showHappyExpression() // 임시 주석 처리
             
-            bubble.position.x = newX
-            launchCharacter?.position.x = newX
-            
-        case .ended, .cancelled:
-            launchBubble()
-            
-        default:
-            break
+            addChild(bubble)
         }
     }
     
@@ -414,6 +445,9 @@ class GameScene: SKScene {
         
         // 발사 횟수 증가
         gameManager.incrementShotCount()
+        
+        // 캐릭터 만족 표정 애니메이션 실행
+        launchCharacter?.performSatisfactionAnimation()
         
         // 크기별 초기 속도 차등 적용 (속도를 낮춰서 충돌 안정성 향상)
         let baseVelocity: CGFloat = 420.0  // 600.0에서 420.0으로 30% 감소 (70%로 조정)
@@ -465,6 +499,9 @@ extension GameScene: SKPhysicsContactDelegate {
               let nodeA = bodyA.node as? BubbleNode,
               let nodeB = bodyB.node as? BubbleNode else { return }
         
+        // 이미 제거 예정인 노드들은 처리하지 않음 (중복 합치기 방지)
+        guard nodeA.parent != nil, nodeB.parent != nil else { return }
+        
         // 충돌 강도 확인 (약한 충돌은 시각적 효과 생략)
         let relativeVelocity = CGVector(
             dx: (bodyA.velocity.dx - bodyB.velocity.dx),
@@ -495,6 +532,10 @@ extension GameScene: SKPhysicsContactDelegate {
         // 같은 크기인지 확인 (합치기 처리)
         guard nodeA.bubbleType == nodeB.bubbleType else { return }
         
+        // 이미 합치기가 진행 중인지 다시 한번 확인
+        guard nodeA.parent != nil, nodeB.parent != nil,
+              !nodeA.isMerging, !nodeB.isMerging else { return }
+        
         // UltraBig+UltraBig 특수 처리 (최대 타입이므로 소멸)
         if nodeA.bubbleType == .ultraBig {
             handleUltraBigMerge(nodeA, nodeB)
@@ -505,6 +546,14 @@ extension GameScene: SKPhysicsContactDelegate {
     
     /// 일반 합치기 처리
     private func handleNormalMerge(_ bubbleA: BubbleNode, _ bubbleB: BubbleNode) {
+        // 다시 한번 부모 노드 존재 확인 (중복 합치기 방지)
+        guard bubbleA.parent != nil, bubbleB.parent != nil,
+              !bubbleA.isMerging, !bubbleB.isMerging else { return }
+        
+        // 합치기 상태 설정 (추가 충돌 방지)
+        bubbleA.setMerging(true)
+        bubbleB.setMerging(true)
+        
         let mergePosition = CGPoint(
             x: (bubbleA.position.x + bubbleB.position.x) / 2,
             y: (bubbleA.position.y + bubbleB.position.y) / 2
@@ -513,7 +562,9 @@ extension GameScene: SKPhysicsContactDelegate {
         // 점수 추가
         gameManager.addScoreForMerge(bubbleType: bubbleA.bubbleType)
         
-        // 기존 비눗방울 제거
+        // 기존 비눗방울 즉시 제거 (물리 바디도 비활성화)
+        bubbleA.physicsBody?.isDynamic = false
+        bubbleB.physicsBody?.isDynamic = false
         bubbleA.removeFromParent()
         bubbleB.removeFromParent()
         
@@ -527,6 +578,9 @@ extension GameScene: SKPhysicsContactDelegate {
             
             // 초기 속도를 제한하여 안정성 향상
             newBubble.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
+            
+            // 합병 성공 표정 설정
+            // newBubble.showExcitedExpression() // 임시 주석 처리
             
             addChild(newBubble)
             
@@ -684,24 +738,48 @@ extension GameScene: SKPhysicsContactDelegate {
         setupLaunchSystem()
     }
     
-    /// 터치 처리 (발사 또는 게임 오버 시 재시작)
+    /// 터치 시작 처리 (패닝 또는 발사, 게임 오버 시 재시작)
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for touch in touches {
-            let location = touch.location(in: self)
-            
-            if gameManager.isGameActive {
-                // 게임 중일 때: 터치로 비눗방울 발사
-                if currentBubble != nil {
-                    launchBubble()
-                }
-            } else {
-                // 게임 오버일 때: 재시작 버튼 처리
-                let touchedNode = atPoint(location)
-                if touchedNode.name == "restartButton" {
-                    restartGame()
-                    break
-                }
+        guard let touch = touches.first else { return }
+        let location = touch.location(in: self)
+        
+        if gameManager.isGameActive {
+            // 게임 중일 때: 패닝 시작 또는 비눗방울 발사
+            if currentBubble != nil {
+                isDragging = true
+                initialTouchPosition = location
+                currentTouchLocation = location
             }
+        } else {
+            // 게임 오버일 때: 재시작 버튼 처리
+            let touchedNode = atPoint(location)
+            if touchedNode.name == "restartButton" {
+                restartGame()
+            }
+        }
+    }
+    
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard isDragging, gameManager.isGameActive, let bubble = currentBubble else { return }
+        guard let touch = touches.first else { return }
+        
+        let location = touch.location(in: self)
+        currentTouchLocation = location
+        
+        // 플레이 영역 너비에 맞게 좌우 이동 제한
+        let playAreaWidth = size.width * 0.7
+        let maxX = playAreaWidth * 0.4  // 플레이 영역의 80% 범위
+        let minX = -playAreaWidth * 0.4
+        let newX = max(minX, min(maxX, location.x))
+        
+        bubble.position.x = newX
+        launchCharacter?.position.x = newX
+    }
+    
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if isDragging && gameManager.isGameActive && currentBubble != nil {
+            isDragging = false
+            launchBubble()
         }
     }
 }
@@ -752,9 +830,33 @@ extension GameScene {
         // 게임 오버 체크
         checkGameOver()
         
+        // 모든 비눗방울의 하이라이트 방향 업데이트 (회전과 독립적으로 고정)
+        let allBubbles = children.compactMap { $0 as? BubbleNode }
+        allBubbles.forEach { bubble in
+            bubble.updateHighlightRotation()
+        }
+        
         // 겹침 방지를 더 적게 실행 (60FPS 대신 20FPS로)
         if Int(currentTime * 20) % 3 == 0 {
             preventBubbleOverlap()
+        }
+    }
+    
+    /// 물리 시뮬레이션 후 눈동자 업데이트
+    override func didSimulatePhysics() {
+        super.didSimulatePhysics()
+        
+        // 모든 방울의 눈동자 방향을 실시간으로 업데이트
+        updateAllPupilDirections()
+    }
+    
+    /// 모든 방울의 눈동자 방향 업데이트
+    private func updateAllPupilDirections() {
+        let allBubbles = children.compactMap { $0 as? BubbleNode }
+        
+        for bubble in allBubbles {
+            // 각 방울이 모든 방울 정보를 받아서 자신보다 큰 방울을 찾아 바라보도록 함
+            bubble.updatePupilDirection(allBubbles: allBubbles)
         }
     }
     
