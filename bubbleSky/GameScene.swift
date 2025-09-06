@@ -208,7 +208,7 @@ class GameScene: SKScene {
     private func setupGameOverLine() {
         let screenWidth = size.width
         let screenHeight = size.height
-        let playAreaWidth = screenWidth * 0.7
+        let playAreaWidth = screenWidth * 0.77
         let playAreaHeight = screenHeight * 0.8
         let playAreaY = -playAreaHeight/2 + screenHeight * 0.05
         
@@ -392,7 +392,7 @@ class GameScene: SKScene {
             
         case .changed:
             // 플레이 영역 너비에 맞게 좌우 이동 제한
-            let playAreaWidth = size.width * 0.7
+            let playAreaWidth = size.width * 0.77
             let maxX = playAreaWidth * 0.4  // 플레이 영역의 80% 범위
             let minX = -playAreaWidth * 0.4
             let newX = max(minX, min(maxX, sceneLocation.x))
