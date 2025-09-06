@@ -1,8 +1,8 @@
 # bubbleSky 프로젝트 개발 작업 목록 (Task List)
 
 ## 📋 프로젝트 개요
-- **기준일**: 2025년 9월 5일
-- **현재 상태**: 기획 완료, 개발 준비 단계
+- **기준일**: 2025년 9월 6일
+- **현재 상태**: Phase 1 완료, Phase 2 진행 준비
 - **개발 방식**: 단계별 점진적 개발 (4 Phase)
 - **우선순위**: 핵심 게임플레이 → 시각 효과 → 게임 시스템 → 폴리싱
 
@@ -20,17 +20,17 @@
 ## 🎯 Phase 1: 핵심 게임플레이 구현 (Week 1-2)
 
 ### 1.1 프로젝트 기본 설정
-- [ ] **1.1.1** Xcode 프로젝트 구조 확인 및 정리
+- [완료] **1.1.1** Xcode 프로젝트 구조 확인 및 정리
   - 📚 참조: `.github/copilot-instructions.md` (파일 구조 규칙)
-- [ ] **1.1.2** SpriteKit 기본 설정 완료 상태 확인
+- [완료] **1.1.2** SpriteKit 기본 설정 완료 상태 확인
   - 📚 참조: `game_design_detailed.md` (게임 개요)
-- [ ] **1.1.3** 물리 엔진 기본 설정 (`physicsWorld.gravity`, `contactDelegate`)
+- [완료] **1.1.3** 물리 엔진 기본 설정 (`physicsWorld.gravity`, `contactDelegate`)
   - 📚 참조: `.github/copilot-instructions.md` (물리 엔진 설정)
-- [ ] **1.1.4** 디버그 모드 설정 (`showsPhysics`, `showsFPS` 등)
+- [완료] **1.1.4** 디버그 모드 설정 (`showsPhysics`, `showsFPS` 등)
   - 📚 참조: `game_design_detailed.md` (디버깅 도구)
 
 ### 1.2 비눗방울 시스템 구현
-- [ ] **1.2.1** `BubbleType` enum 정의 (Tiny~Mega, 7단계)
+- [완료] **1.2.1** `BubbleType` enum 정의 (Tiny~Mega, 7단계)
   ```swift
   enum BubbleType: Int, CaseIterable {
       case tiny = 1, small = 2, medium = 3, large = 4
@@ -38,64 +38,73 @@
   }
   ```
   - 📚 참조: `character_panning_launch_system.md` (랜덤 시스템), `bubble_character_system.md` (캐릭터별 성격)
-- [ ] **1.2.2** `BubbleNode` 클래스 생성 (`SKShapeNode` 기반)
+- [완료] **1.2.2** `BubbleNode` 클래스 생성 (`SKShapeNode` 기반)
   - 📚 참조: `game_design_detailed.md` (게임 메커니즘), `bubble_character_system.md` (표정 시스템)
-- [ ] **1.2.3** 비눗방울 크기별 물리 속성 설정 (반지름, 질량, 탄성)
+- [완료] **1.2.3** 비눗방울 크기별 물리 속성 설정 (반지름, 질량, 탄성)
   - 📚 참조: `curved_play_area_system.md` (물리 시뮬레이션), `game_design_detailed.md` (게임 메커니즘)
-- [ ] **1.2.4** 비눗방울 색상 시스템 구현 (7색 무지개 팔레트)
+- [완료] **1.2.4** 비눗방울 색상 시스템 구현 (7색 무지개 팔레트)
   - 📚 참조: `.github/copilot-instructions.md` (색상 팔레트), `bubble_character_system.md` (캐릭터별 색상)
-- [ ] **1.2.5** 충돌 감지를 위한 `categoryBitMask`, `contactTestBitMask` 설정
+- [완료] **1.2.5** 충돌 감지를 위한 `categoryBitMask`, `contactTestBitMask` 설정
   - 📚 참조: `game_design_detailed.md` (게임 메커니즘)
 
 ### 1.3 곡선형 플레이 영역 구현
-- [ ] **1.3.1** 상단 곡선 경계 생성 (포물선/타원 형태)
+- [완료] **1.3.1** 상단 곡선 경계 생성 (포물선/타원 형태)
   - 📚 참조: `curved_play_area_system.md` (곡선형 플레이 영역 디자인)
-- [ ] **1.3.2** 곡선과 비눗방울 충돌 감지 시스템
+- [완료] **1.3.2** 곡선과 비눗방울 충돌 감지 시스템
   - 📚 참조: `curved_play_area_system.md` (곡선 충돌 처리)
-- [ ] **1.3.3** 곡선 경사를 따른 굴러가기 물리 효과
+- [완료] **1.3.3** 곡선 경사를 따른 굴러가기 물리 효과
   - 📚 참조: `curved_play_area_system.md` (물리 시뮬레이션 적용)
-- [ ] **1.3.4** 좌우 직선 벽면 구현
+- [완료] **1.3.4** 좌우 직선 벽면 구현
   - 📚 참조: `curved_play_area_system.md` (곡선형 플레이 영역 디자인)
-- [ ] **1.3.5** 하단 발사 영역 설정
+- [완료] **1.3.5** 하단 발사 영역 설정
   - 📚 참조: `character_panning_launch_system.md` (패닝 조작 시스템)
 
 ### 1.4 캐릭터 패닝 발사 시스템 구현
-- [ ] **1.4.1** 기본 발사 캐릭터 노드 생성 및 배치 (화면 하단 중앙)
+- [완료] **1.4.1** 기본 발사 캐릭터 노드 생성 및 배치 (화면 하단 중앙)
   - 📚 참조: `character_panning_launch_system.md` (캐릭터 시스템)
-- [ ] **1.4.2** 랜덤 비눗방울 생성 시스템 구현
+- [완료] **1.4.2** 랜덤 비눗방울 생성 시스템 구현
   - Tiny(30%), Small(30%), Medium(25%), Large(10%), Huge(5%)
   - Giant, Mega는 생성 안됨
   - 📚 참조: `character_panning_launch_system.md` (확률 분포)
-- [ ] **1.4.3** 패닝 제스처 인식 및 처리 (`UIPanGestureRecognizer`)
+- [완료] **1.4.3** 패닝 제스처 인식 및 처리 (`UIPanGestureRecognizer`)
   - 📚 참조: `character_panning_launch_system.md` (패닝 조작 시스템), `bubble_launch_mechanics.md` (발사 방법)
-- [ ] **1.4.4** 비눗방울 좌우 이동 제한 (화면 너비 90% 내)
+- [완료] **1.4.4** 비눗방울 좌우 이동 제한 (화면 너비 90% 내)
   - 📚 참조: `character_panning_launch_system.md` (이동 제한)
-- [ ] **1.4.5** 터치 해제 시 수직 발사 메커니즘
+- [완료] **1.4.5** 터치 해제 시 수직 발사 메커니즘
   - 📚 참조: `character_panning_launch_system.md` (게임 플레이 흐름)
-- [ ] **1.4.6** 크기별 초기 속도 차등 적용
+- [완료] **1.4.6** 크기별 초기 속도 차등 적용
   - 📚 참조: `character_panning_launch_system.md` (물리 시뮬레이션)
 
 ### 1.5 합치기(Merge) 로직 구현
-- [ ] **1.5.1** 같은 크기 비눗방울 충돌 감지 (`didBegin(_:)`)
+- [완료] **1.5.1** 같은 크기 비눗방울 충돌 감지 (`didBegin(_:)`)
   - 📚 참조: `game_design_detailed.md` (게임 메커니즘)
-- [ ] **1.5.2** 충돌한 두 비눗방울 제거 로직
+- [완료] **1.5.2** 충돌한 두 비눗방울 제거 로직
   - 📚 참조: `game_design_detailed.md` (게임 플레이 흐름)
-- [ ] **1.5.3** 한 단계 큰 비눗방울 생성 로직
+- [완료] **1.5.3** 한 단계 큰 비눗방울 생성 로직
   - 📚 참조: `bubble_character_system.md` (비눗방울 크기별 특징)
-- [ ] **1.5.4** Mega+Mega 특수 처리 (소멸 효과)
+- [완료] **1.5.4** Mega+Mega 특수 처리 (소멸 효과)
   - 📚 참조: `special_effects_counter_system.md` (Mega+Mega 특수 효과 시스템)
-- [ ] **1.5.5** 연속 방지 시스템 (같은 크기 3번 연속 제한)
+- [완료] **1.5.5** 연속 방지 시스템 (같은 크기 3번 연속 제한)
   - 📚 참조: `character_panning_launch_system.md` (연속 방지 시스템)
 
 ### 1.6 게임 오버 시스템
-- [ ] **1.6.1** 화면 상단 게임 오버 라인 설정
+- [완료] **1.6.1** 화면 상단 게임 오버 라인 설정
   - 📚 참조: `game_design_detailed.md` (게임 플레이 흐름)
-- [ ] **1.6.2** 비눗방울이 라인을 넘었을 때 감지
+- [완료] **1.6.2** 비눗방울이 라인을 넘었을 때 감지
   - 📚 참조: `curved_play_area_system.md` (곡선형 플레이 영역)
-- [ ] **1.6.3** 일정 시간 유지 시 게임 오버 처리
+- [완료] **1.6.3** 일정 시간 유지 시 게임 오버 처리 (3초 타이머)
   - 📚 참조: `game_design_detailed.md` (게임 플레이 흐름)
-- [ ] **1.6.4** 게임 재시작 로직
+- [완료] **1.6.4** 게임 재시작 로직 (터치로 재시작)
   - 📚 참조: `game_design_detailed.md` (UI 구성)
+
+### 1.7 정보 패널 시스템 (추가 완료)
+
+- [완료] **1.7.1** 상단 파란색 정보 패널 UI 구현
+  - 점수, 시간, 레벨, 최고점수, 방울개수 표시
+- [완료] **1.7.2** 실시간 정보 업데이트 시스템
+  - 게임 진행에 따른 모든 정보 동적 갱신
+- [완료] **1.7.3** 최고점수 자동 저장 (UserDefaults 활용)
+  - 앱 재시작 시에도 최고점수 유지
 
 ---
 
