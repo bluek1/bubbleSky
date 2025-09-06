@@ -70,14 +70,25 @@ class BubbleNode: SKShapeNode {
     /// 얼굴 특징 추가 (눈과 입)
     private func addFacialFeatures(radius: CGFloat) {
         // 랜덤 표정 타입 선택 (새로운 표정들 추가)
-        let expressionTypes = ["happy", "neutral", "surprised", "sleepy", "excited", "closed_happy", "wink_left", "tired", "half_closed"]
+        let expressionTypes = ["happy", "neutral", "surprised", "sleepy", "excited", "closed_happy", "wink_left", "tired", "half_closed", "sad", "laughing", "worried", "confused"]
         let randomExpression = expressionTypes.randomElement() ?? "neutral"
+        
+        // 표정 타입을 저장 (눈 뜨기 애니메이션에서 사용)
+        self.name = "bubble_\(randomExpression)"
         
         // 눈 추가
         addEyes(radius: radius, expression: randomExpression)
         
         // 입 추가
         addMouth(radius: radius, expression: randomExpression)
+        
+        // 깜빡이는 애니메이션 시작
+        startBlinkingAnimation()
+        
+        // 감은 눈 표정인 경우 눈 뜨기 애니메이션 시작
+        if isClosedEyeExpression(randomExpression) {
+            startEyeOpeningAnimation(radius: radius, expression: randomExpression)
+        }
     }
     
     /// 눈 그리기 (다양한 표정 지원)
@@ -121,6 +132,7 @@ class BubbleNode: SKShapeNode {
         leftEyeWhite.lineWidth = 1.5
         leftEyeWhite.position = CGPoint(x: -eyeOffset, y: eyeY)
         leftEyeWhite.zPosition = 10
+        leftEyeWhite.name = "leftEye"  // 깜빡임을 위한 이름 설정
         addChild(leftEyeWhite)
         
         // 왼쪽 눈동자
@@ -139,6 +151,7 @@ class BubbleNode: SKShapeNode {
         rightEyeWhite.lineWidth = 1.5
         rightEyeWhite.position = CGPoint(x: eyeOffset, y: eyeY)
         rightEyeWhite.zPosition = 10
+        rightEyeWhite.name = "rightEye"  // 깜빡임을 위한 이름 설정
         addChild(rightEyeWhite)
         
         // 오른쪽 눈동자
@@ -303,14 +316,66 @@ class BubbleNode: SKShapeNode {
             path.move(to: CGPoint(x: -mouthWidth/2, y: 0))
             path.addQuadCurve(to: CGPoint(x: mouthWidth/2, y: 0), 
                              control: CGPoint(x: 0, y: mouthWidth * 0.3))
+                             
+        case "laughing":
+            // 크게 웃는 입 (더 크고 위로 볼록한 호)
+            let bigMouthWidth = mouthWidth * 1.3
+            path.move(to: CGPoint(x: -bigMouthWidth/2, y: 0))
+            path.addQuadCurve(to: CGPoint(x: bigMouthWidth/2, y: 0), 
+                             control: CGPoint(x: 0, y: bigMouthWidth * 0.4))
+                             
+        case "sad":
+            // 슬픈 입 (아래로 볼록한 호)
+            path.move(to: CGPoint(x: -mouthWidth/2, y: 0))
+            path.addQuadCurve(to: CGPoint(x: mouthWidth/2, y: 0), 
+                             control: CGPoint(x: 0, y: -mouthWidth * 0.3))
+                             
         case "surprised":
-            // 놀란 입 (작은 원)
-            path.addEllipse(in: CGRect(x: -mouthWidth/4, y: -mouthWidth/4, 
-                                     width: mouthWidth/2, height: mouthWidth/2))
-        case "sleepy":
+            // 놀란 입 (작은 타원)
+            let ovalWidth = mouthWidth * 0.4
+            let ovalHeight = mouthWidth * 0.6
+            path.addEllipse(in: CGRect(x: -ovalWidth/2, y: -ovalHeight/2, 
+                                     width: ovalWidth, height: ovalHeight))
+                                     
+        case "worried":
+            // 걱정하는 입 (물결 모양)
+            path.move(to: CGPoint(x: -mouthWidth/2, y: 0))
+            path.addQuadCurve(to: CGPoint(x: 0, y: -mouthWidth * 0.1), 
+                             control: CGPoint(x: -mouthWidth/4, y: mouthWidth * 0.1))
+            path.addQuadCurve(to: CGPoint(x: mouthWidth/2, y: 0), 
+                             control: CGPoint(x: mouthWidth/4, y: -mouthWidth * 0.2))
+                             
+        case "confused":
+            // 혼란스러운 입 (S자 곡선)
+            path.move(to: CGPoint(x: -mouthWidth/2, y: mouthWidth * 0.1))
+            path.addQuadCurve(to: CGPoint(x: 0, y: -mouthWidth * 0.1), 
+                             control: CGPoint(x: -mouthWidth/4, y: -mouthWidth * 0.2))
+            path.addQuadCurve(to: CGPoint(x: mouthWidth/2, y: mouthWidth * 0.1), 
+                             control: CGPoint(x: mouthWidth/4, y: mouthWidth * 0.2))
+                             
+        case "sleepy", "tired":
             // 졸린 입 (작은 가로선)
             path.move(to: CGPoint(x: -mouthWidth/3, y: 0))
             path.addLine(to: CGPoint(x: mouthWidth/3, y: 0))
+            
+        case "closed_happy":
+            // 감은 눈에 맞는 기쁜 입 (작고 위로 볼록)
+            let smallWidth = mouthWidth * 0.7
+            path.move(to: CGPoint(x: -smallWidth/2, y: 0))
+            path.addQuadCurve(to: CGPoint(x: smallWidth/2, y: 0), 
+                             control: CGPoint(x: 0, y: smallWidth * 0.25))
+                             
+        case "half_closed":
+            // 반쯤 감은 눈에 맞는 입 (약간 벌린 모양)
+            path.move(to: CGPoint(x: -mouthWidth/4, y: mouthWidth * 0.05))
+            path.addLine(to: CGPoint(x: mouthWidth/4, y: -mouthWidth * 0.05))
+            
+        case "wink_left":
+            // 윙크에 맞는 장난스러운 입 (한쪽으로 기운 웃음)
+            path.move(to: CGPoint(x: -mouthWidth/2, y: -mouthWidth * 0.05))
+            path.addQuadCurve(to: CGPoint(x: mouthWidth/2, y: mouthWidth * 0.1), 
+                             control: CGPoint(x: mouthWidth * 0.1, y: mouthWidth * 0.3))
+                             
         default: // neutral
             // 중립적인 입 (약간 아래로 볼록한 호)
             path.move(to: CGPoint(x: -mouthWidth/2, y: 0))
@@ -612,6 +677,243 @@ class BubbleNode: SKShapeNode {
             updateShape()
         }
         isCompressed = false
+    }
+    
+    // MARK: - Blinking Animation
+    
+    /// 깜빡이는 애니메이션 시작
+    private func startBlinkingAnimation() {
+        // 랜덤한 깜빡임 간격 (2~8초)
+        let randomDelay = Double.random(in: 2.0...8.0)
+        
+        // 깜빡임 애니메이션 실행
+        let blinkAction = SKAction.sequence([
+            SKAction.wait(forDuration: randomDelay),
+            SKAction.run { [weak self] in
+                self?.performBlink()
+            }
+        ])
+        
+        // 무한 반복
+        let repeatAction = SKAction.repeatForever(blinkAction)
+        self.run(repeatAction, withKey: "blinkingAnimation")
+    }
+    
+    /// 깜빡임 실행
+    private func performBlink() {
+        // 모든 눈 찾기 (이름으로 찾기)
+        var eyeNodes: [SKNode] = []
+        
+        // 자식 노드에서 눈 찾기
+        for child in children {
+            if let name = child.name, name.contains("Eye") {
+                eyeNodes.append(child)
+            }
+        }
+        
+        // 눈이 없으면 기본 방식으로 찾기 (흰색 원형 노드)
+        if eyeNodes.isEmpty {
+            for child in children {
+                if let shapeNode = child as? SKShapeNode,
+                   shapeNode.fillColor == SKColor.white && 
+                   shapeNode.strokeColor == SKColor.black {
+                    eyeNodes.append(child)
+                }
+            }
+        }
+        
+        // 눈이 없으면 종료
+        guard !eyeNodes.isEmpty else { return }
+        
+        // 깜빡임 애니메이션 시퀀스
+        let blinkDuration: TimeInterval = 0.15
+        
+        // 눈을 감는 애니메이션 (스케일 Y를 0으로)
+        let closeEyes = SKAction.scaleY(to: 0.1, duration: blinkDuration * 0.5)
+        
+        // 눈을 뜨는 애니메이션 (스케일 Y를 1로)
+        let openEyes = SKAction.scaleY(to: 1.0, duration: blinkDuration * 0.5)
+        
+        // 깜빡임 시퀀스
+        let blinkSequence = SKAction.sequence([closeEyes, openEyes])
+        
+        // 모든 눈에 애니메이션 적용
+        for eyeNode in eyeNodes {
+            eyeNode.run(blinkSequence)
+        }
+        
+        // 랜덤하게 다음 깜빡임 시간 설정
+        let nextBlinkDelay = Double.random(in: 2.0...8.0)
+        let nextBlinkAction = SKAction.sequence([
+            SKAction.wait(forDuration: nextBlinkDelay),
+            SKAction.run { [weak self] in
+                self?.performBlink()
+            }
+        ])
+        
+        self.run(nextBlinkAction, withKey: "nextBlink")
+    }
+    
+    /// 깜빡임 애니메이션 중지
+    func stopBlinkingAnimation() {
+        self.removeAction(forKey: "blinkingAnimation")
+        self.removeAction(forKey: "nextBlink")
+    }
+    
+    // MARK: - Eye Opening Animation (for closed eyes)
+    
+    /// 감은 눈 표정인지 확인
+    private func isClosedEyeExpression(_ expression: String) -> Bool {
+        return ["closed_happy", "tired", "half_closed"].contains(expression)
+    }
+    
+    /// 감은 눈이 뜨는 애니메이션 시작
+    private func startEyeOpeningAnimation(radius: CGFloat, expression: String) {
+        // 랜덤한 눈 뜨기 간격 (5~15초)
+        let randomDelay = Double.random(in: 5.0...15.0)
+        
+        let eyeOpenAction = SKAction.sequence([
+            SKAction.wait(forDuration: randomDelay),
+            SKAction.run { [weak self] in
+                self?.performEyeOpening(radius: radius, expression: expression)
+            }
+        ])
+        
+        // 무한 반복
+        let repeatAction = SKAction.repeatForever(eyeOpenAction)
+        self.run(repeatAction, withKey: "eyeOpeningAnimation")
+    }
+    
+    /// 눈 뜨기 실행
+    private func performEyeOpening(radius: CGFloat, expression: String) {
+        // 현재 감은 눈들을 찾아서 임시로 원형 눈으로 변경
+        createTemporaryOpenEyes(radius: radius, expression: expression)
+        
+        // 랜덤하게 다음 눈 뜨기 시간 설정
+        let nextOpenDelay = Double.random(in: 5.0...15.0)
+        let nextOpenAction = SKAction.sequence([
+            SKAction.wait(forDuration: nextOpenDelay),
+            SKAction.run { [weak self] in
+                self?.performEyeOpening(radius: radius, expression: expression)
+            }
+        ])
+        
+        self.run(nextOpenAction, withKey: "nextEyeOpen")
+    }
+    
+    /// 임시로 열린 눈 생성
+    private func createTemporaryOpenEyes(radius: CGFloat, expression: String) {
+        // 기존 감은 눈들을 숨기기
+        hideClosedEyes()
+        
+        // 임시 열린 눈 생성
+        let eyeRadius = bubbleType == .tiny ? radius * 0.15 : radius * 0.2
+        let pupilRadius = bubbleType == .tiny ? radius * 0.075 : radius * 0.1
+        let eyeOffset = radius * 0.25
+        let eyeY = radius * 0.2
+        
+        // 왼쪽 임시 눈
+        let leftTempEye = createTemporaryEye(
+            radius: eyeRadius,
+            pupilRadius: pupilRadius,
+            position: CGPoint(x: -eyeOffset, y: eyeY),
+            name: "tempLeftEye"
+        )
+        addChild(leftTempEye)
+        
+        // 오른쪽 임시 눈
+        let rightTempEye = createTemporaryEye(
+            radius: eyeRadius,
+            pupilRadius: pupilRadius,
+            position: CGPoint(x: eyeOffset, y: eyeY),
+            name: "tempRightEye"
+        )
+        addChild(rightTempEye)
+        
+        // 눈 뜨기 애니메이션 (페이드 인)
+        [leftTempEye, rightTempEye].forEach { eye in
+            eye.alpha = 0
+            let fadeIn = SKAction.fadeIn(withDuration: 0.2)
+            eye.run(fadeIn)
+        }
+        
+        // 1~3초 후 다시 감기
+        let eyeOpenDuration = Double.random(in: 1.0...3.0)
+        let closeAgainAction = SKAction.sequence([
+            SKAction.wait(forDuration: eyeOpenDuration),
+            SKAction.run { [weak self] in
+                self?.closeTemporaryEyes()
+            }
+        ])
+        
+        self.run(closeAgainAction, withKey: "closeTemporaryEyes")
+    }
+    
+    /// 임시 눈 노드 생성
+    private func createTemporaryEye(radius: CGFloat, pupilRadius: CGFloat, position: CGPoint, name: String) -> SKNode {
+        let eyeContainer = SKNode()
+        eyeContainer.position = position
+        eyeContainer.name = name
+        eyeContainer.zPosition = 15  // 기존 눈보다 위에 표시
+        
+        // 흰자
+        let eyeWhite = SKShapeNode(circleOfRadius: radius)
+        eyeWhite.fillColor = SKColor.white
+        eyeWhite.strokeColor = SKColor.black
+        eyeWhite.lineWidth = 1.5
+        eyeWhite.position = CGPoint.zero
+        eyeContainer.addChild(eyeWhite)
+        
+        // 눈동자
+        let pupil = SKShapeNode(circleOfRadius: pupilRadius)
+        pupil.fillColor = SKColor.black
+        pupil.strokeColor = SKColor.clear
+        pupil.position = CGPoint.zero
+        eyeContainer.addChild(pupil)
+        
+        return eyeContainer
+    }
+    
+    /// 감은 눈들 숨기기
+    private func hideClosedEyes() {
+        for child in children {
+            if let shapeNode = child as? SKShapeNode,
+               shapeNode.strokeColor == SKColor.black && 
+               shapeNode.fillColor == SKColor.black {
+                // 감은 눈으로 보이는 노드들을 임시로 숨기기
+                let fadeOut = SKAction.fadeOut(withDuration: 0.2)
+                child.run(fadeOut, withKey: "hideForOpen")
+            }
+        }
+    }
+    
+    /// 임시 눈들 제거하고 원래 감은 눈 복원
+    private func closeTemporaryEyes() {
+        // 임시 눈들 제거
+        let tempEyes = children.filter { $0.name?.contains("temp") == true }
+        tempEyes.forEach { eye in
+            let fadeOut = SKAction.fadeOut(withDuration: 0.2)
+            let remove = SKAction.removeFromParent()
+            let sequence = SKAction.sequence([fadeOut, remove])
+            eye.run(sequence)
+        }
+        
+        // 원래 감은 눈들 복원
+        for child in children {
+            if let shapeNode = child as? SKShapeNode,
+               shapeNode.strokeColor == SKColor.black && 
+               shapeNode.fillColor == SKColor.black {
+                let fadeIn = SKAction.fadeIn(withDuration: 0.3)
+                child.run(fadeIn, withKey: "restoreClosedEye")
+            }
+        }
+    }
+    
+    /// 눈 뜨기 애니메이션 중지
+    func stopEyeOpeningAnimation() {
+        self.removeAction(forKey: "eyeOpeningAnimation")
+        self.removeAction(forKey: "nextEyeOpen")
+        self.removeAction(forKey: "closeTemporaryEyes")
     }
 }
 
