@@ -34,12 +34,18 @@
 ### 파일 구조 규칙
 ```
 bubbleSky/
-├── GameScene.swift          // 메인 게임 로직
-├── BubbleNode.swift         // 비눗방울 노드 클래스
-├── GameManager.swift        // 게임 상태 관리
-├── PhysicsHelper.swift      // 물리 엔진 헬퍼
-├── AudioManager.swift       // 사운드 관리
-├── ParticleEffects.swift    // 파티클 효과
+├── GameScene.swift              // 메인 게임 로직
+├── GameManager.swift            // 게임 상태 관리
+├── GameViewController.swift     // 뷰 컨트롤러
+├── AppDelegate.swift            // 앱 델리게이트
+├── PhysicsHelper.swift          // 물리 엔진 헬퍼
+├── AudioManager.swift           // 사운드 관리
+├── ParticleEffects.swift        // 파티클 효과
+├── Models/
+│   ├── BubbleNode.swift        // 비눗방울 노드 클래스
+│   ├── BubbleType.swift        // 비눗방울 타입 정의
+│   ├── CharacterNode.swift     // 캐릭터 노드 클래스
+│   └── PhysicsCategory.swift   // 물리 카테고리 정의
 └── Extensions/
     ├── SKNode+Extensions.swift
     └── CGPoint+Extensions.swift
@@ -48,9 +54,10 @@ bubbleSky/
 
 ### 물리 시뮬레이션
 - `SKPhysicsWorld` 사용
-- 중력: `physicsWorld.gravity = CGVector(dx: 0, dy: -9.8)`
+- 중력: `physicsWorld.gravity = CGVector(dx: 0, dy: 5.0)` (천정 방향으로 상승)
 - 충돌 감지: 같은 타입 비눗방울 합치기
-- 벽면 바운스: 부드러운 반사
+- 벽면 바운스: 부드러운 반사 (restitution: 0.2)
+- 물리 시뮬레이션 속도: 0.6 (안정성 향상)
 
 ### 게임 플레이 흐름
 1. 화면 하단에서 비눗방울 발사
@@ -61,16 +68,19 @@ bubbleSky/
 
 ## 시각적 디자인 가이드
 
-### 색상 팔레트
+### 색상 팔레트 (여름 테마)
 ```swift
-struct BubbleColors {
-    static let tiny = UIColor.systemBlue.withAlphaComponent(0.3)
-    static let small = UIColor.systemGreen.withAlphaComponent(0.3)
-    static let medium = UIColor.systemYellow.withAlphaComponent(0.3)
-    static let large = UIColor.systemOrange.withAlphaComponent(0.3)
-    static let huge = UIColor.systemRed.withAlphaComponent(0.3)
-    static let giant = UIColor.systemPurple.withAlphaComponent(0.3)
-    static let mega = UIColor.systemPink.withAlphaComponent(0.3)
+// BubbleType enum의 color 속성으로 정의됨
+enum BubbleType {
+    case tiny:      UIColor(red: 0.2, green: 0.7, blue: 1.0, alpha: 0.25)   // 여름 하늘 파랑
+    case small:     UIColor(red: 0.3, green: 0.9, blue: 0.4, alpha: 0.25)   // 여름 잔디 초록
+    case medium:    UIColor(red: 1.0, green: 0.9, blue: 0.3, alpha: 0.25)   // 여름 햇살 노랑
+    case large:     UIColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 0.25)   // 여름 석양 오렌지
+    case huge:      UIColor(red: 1.0, green: 0.3, blue: 0.4, alpha: 0.25)   // 여름 수박 빨강
+    case giant:     UIColor(red: 0.6, green: 0.4, blue: 1.0, alpha: 0.25)   // 여름 라벤더 보라
+    case mega:      UIColor(red: 1.0, green: 0.4, blue: 0.8, alpha: 0.25)   // 여름 코스모스 분홍
+    case superBig:  UIColor(red: 0.2, green: 1.0, blue: 0.8, alpha: 0.25)   // 여름 바다 시안
+    case ultraBig:  UIColor(red: 0.4, green: 1.0, blue: 0.6, alpha: 0.25)   // 여름 민트
 }
 ```
 
@@ -118,7 +128,7 @@ class BubblePool {
 
 ## 사운드 시스템
 
-### 필요한 사운드 효과
+### 필요한 사운드 효과 (AudioManager.swift에 구현됨)
 ```swift
 enum SoundEffect: String {
     case bubbleShoot = "bubble_shoot.wav"
@@ -126,7 +136,13 @@ enum SoundEffect: String {
     case bubblePop = "bubble_pop.wav"
     case backgroundMusic = "peaceful_sky.mp3"
     case gameOver = "game_over.wav"
+    case chainReaction = "chain_reaction.wav"
+    case megaSpecial = "mega_special.wav"
 }
+
+// AudioManager 사용법
+AudioManager.shared.playBackgroundMusic()
+AudioManager.shared.playSoundEffect(.bubbleShoot)
 ```
 
 ## 테스트 가이드
@@ -147,9 +163,51 @@ enum SoundEffect: String {
 ```swift
 // GameScene에서 물리 월드 설정
 physicsWorld.contactDelegate = self
-physicsWorld.gravity = CGVector(dx: 0, dy: -9.8)
-physicsBody = SKPhysicsBody(edgeLoopFrom: frame)
+physicsWorld.gravity = CGVector(dx: 0, dy: 5.0)  // 천정 방향
+physicsWorld.speed = 0.6  // 안정성 향상
+
+// 또는 PhysicsHelper 사용
+PhysicsHelper.setupPhysicsWorld(for: self)
 ```
+
+## 새로 추가된 헬퍼 클래스
+
+### PhysicsHelper.swift
+물리 엔진 관련 유틸리티 함수 제공
+- 물리 월드 초기 설정
+- 물리 바디 생성 헬퍼
+- 충돌 감지 헬퍼
+- 거리/방향 계산
+- 임펄스 생성
+- 속도 제한
+
+### AudioManager.swift
+사운드 및 음악 관리 싱글톤 클래스
+- 배경 음악 재생/정지
+- 효과음 재생
+- 볼륨 조절
+- 사운드 활성화/비활성화 설정
+
+### ParticleEffects.swift
+파티클 효과 생성 및 관리
+- 비눗방울 합치기 효과
+- 비눗방울 터지기 효과
+- 무지개 효과
+- 축하 효과
+- 메가 스페셜 효과
+
+### Extensions/
+#### SKNode+Extensions.swift
+- 거리 계산
+- 애니메이션 헬퍼 (fadeIn, fadeOut, pulse, blink, shake)
+- 유틸리티 메서드
+
+#### CGPoint+Extensions.swift
+- 거리/방향 계산
+- 벡터 연산
+- 선형 보간
+- 범위 제한
+- 랜덤 생성
 
 이 지침서를 참고하여 일관성 있는 코드를 작성하고, 게임의 품질을 높이는 데 집중해주세요.
 
