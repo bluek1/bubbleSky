@@ -57,7 +57,14 @@ class GameScene: SKScene {
     /// 플레이 영역 정보
     private var playAreaBounds: CGRect = CGRect.zero
     private var initialTouchPosition: CGPoint = .zero
-    
+
+    /// 동적 배경 시스템 (Phase 2.3)
+    private var backgroundGradient: SKSpriteNode?
+    private var clouds: [SKShapeNode] = []
+    private var starsNode: SKNode?
+    private var weatherParticleNode: SKEmitterNode?
+    private let timeManager = TimeManager.shared
+
     // MARK: - Scene Lifecycle
     
     override init(size: CGSize) {
@@ -75,12 +82,15 @@ class GameScene: SKScene {
     }
     
     override func didMove(to view: SKView) {
-        setupSummerBackground()
+        setupDynamicBackground()
         setupPhysicsWorld()
         setupPlayArea()
         setupUI()
         setupLaunchSystem()
-        
+
+        // TimeManager 설정 (Phase 2.3)
+        setupTimeManager()
+
         // 게임 시작
         gameManager.startNewGame()
     }
@@ -88,61 +98,277 @@ class GameScene: SKScene {
     
     // MARK: - Setup Methods
     
-    /// 여름 느낌의 배경 설정
-    private func setupSummerBackground() {
-        // 여름 하늘 그라데이션 배경 생성
-        let backgroundNode = SKShapeNode(rect: CGRect(x: -size.width/2, y: -size.height/2, width: size.width, height: size.height))
-        
-        // 여름 하늘색으로 설정 (하늘색에서 연한 청록색으로 그라데이션)
-        backgroundColor = UIColor(red: 0.5, green: 0.8, blue: 1.0, alpha: 1.0)  // 여름 하늘색
-        
-        // 구름 효과 추가 (선택사항)
+    /// 동적 배경 설정 (Phase 2.3)
+    private func setupDynamicBackground() {
+        // 초기 배경색 설정
+        backgroundColor = .black
+
+        // 그라데이션 배경 생성
+        let gradientSize = CGSize(width: size.width, height: size.height)
+        let texture = createGradientTexture(
+            size: gradientSize,
+            topColor: timeManager.currentTimeOfDay.skyTopColor,
+            bottomColor: timeManager.currentTimeOfDay.skyBottomColor
+        )
+
+        backgroundGradient = SKSpriteNode(texture: texture)
+        backgroundGradient?.position = CGPoint.zero
+        backgroundGradient?.zPosition = -100
+        if let gradient = backgroundGradient {
+            addChild(gradient)
+        }
+
+        // 별 추가 (밤/새벽만)
+        if timeManager.currentTimeOfDay.showStars {
+            addStars()
+        }
+
+        // 구름 효과 추가
         addFloatingClouds()
-        
-        backgroundNode.zPosition = -100
-        addChild(backgroundNode)
+    }
+
+    /// TimeManager 설정 및 콜백 등록 (Phase 2.3)
+    private func setupTimeManager() {
+        // 시간 변경 콜백
+        timeManager.onTimeChanged = { [weak self] newTime in
+            self?.updateBackgroundForTime(newTime)
+        }
+
+        // 날씨 변경 콜백 (추후 구현)
+        timeManager.onWeatherChanged = { [weak self] newWeather in
+            self?.updateWeatherEffects(newWeather)
+        }
+
+        // 자동 업데이트 시작 (1분마다)
+        timeManager.startAutoUpdate()
+
+        // 초기 날씨 설정
+        timeManager.randomizeWeather()
+    }
+
+    /// 시간대 변경 시 배경 업데이트 (Phase 2.3)
+    private func updateBackgroundForTime(_ timeOfDay: TimeOfDay) {
+        guard let gradient = backgroundGradient else { return }
+
+        // 새로운 그라데이션 텍스처 생성
+        let newTexture = createGradientTexture(
+            size: CGSize(width: size.width, height: size.height),
+            topColor: timeOfDay.skyTopColor,
+            bottomColor: timeOfDay.skyBottomColor
+        )
+
+        // 부드러운 전환 애니메이션 (30초)
+        let fadeOut = SKAction.fadeAlpha(to: 0.0, duration: 15.0)
+        let changeTexture = SKAction.run {
+            gradient.texture = newTexture
+        }
+        let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: 15.0)
+        let sequence = SKAction.sequence([fadeOut, changeTexture, fadeIn])
+
+        gradient.run(sequence)
+
+        // 구름 색상 업데이트
+        updateCloudsColor(for: timeOfDay)
+
+        // 별 표시/숨김
+        if timeOfDay.showStars && starsNode == nil {
+            addStars()
+        } else if !timeOfDay.showStars && starsNode != nil {
+            removeStars()
+        }
+    }
+
+    /// 그라데이션 텍스처 생성 (Phase 2.3)
+    private func createGradientTexture(size: CGSize, topColor: UIColor, bottomColor: UIColor) -> SKTexture {
+        let renderer = UIGraphicsImageRenderer(size: size)
+
+        let image = renderer.image { context in
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+            var topR: CGFloat = 0, topG: CGFloat = 0, topB: CGFloat = 0, topA: CGFloat = 0
+            var bottomR: CGFloat = 0, bottomG: CGFloat = 0, bottomB: CGFloat = 0, bottomA: CGFloat = 0
+
+            topColor.getRed(&topR, green: &topG, blue: &topB, alpha: &topA)
+            bottomColor.getRed(&bottomR, green: &bottomG, blue: &bottomB, alpha: &bottomA)
+
+            let colors = [
+                topColor.cgColor,
+                bottomColor.cgColor
+            ] as CFArray
+
+            let locations: [CGFloat] = [0.0, 1.0]
+
+            if let gradient = CGGradient(colorsSpace: colorSpace, colors: colors, locations: locations) {
+                context.cgContext.drawLinearGradient(
+                    gradient,
+                    start: CGPoint(x: size.width / 2, y: size.height),
+                    end: CGPoint(x: size.width / 2, y: 0),
+                    options: []
+                )
+            }
+        }
+
+        return SKTexture(image: image)
+    }
+
+    /// 별 효과 추가 (밤/새벽) (Phase 2.3)
+    private func addStars() {
+        guard starsNode == nil else { return }
+
+        let stars = SKNode()
+        stars.zPosition = -90
+
+        // 랜덤 별 생성 (50~100개)
+        let starCount = Int.random(in: 50...100)
+
+        for _ in 0..<starCount {
+            let star = SKShapeNode(circleOfRadius: CGFloat.random(in: 1.0...2.5))
+            star.fillColor = .white
+            star.strokeColor = .clear
+            star.alpha = CGFloat.random(in: 0.3...1.0)
+
+            // 랜덤 위치 (화면 전체)
+            let randomX = CGFloat.random(in: -size.width/2...size.width/2)
+            let randomY = CGFloat.random(in: -size.height/2...size.height/2)
+            star.position = CGPoint(x: randomX, y: randomY)
+
+            // 깜빡임 애니메이션
+            let fadeOut = SKAction.fadeAlpha(to: 0.3, duration: Double.random(in: 1.0...3.0))
+            let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: Double.random(in: 1.0...3.0))
+            let blink = SKAction.sequence([fadeOut, fadeIn])
+            let repeatBlink = SKAction.repeatForever(blink)
+            star.run(repeatBlink)
+
+            stars.addChild(star)
+        }
+
+        starsNode = stars
+        addChild(stars)
+
+        // 페이드 인 효과
+        stars.alpha = 0.0
+        stars.run(SKAction.fadeIn(withDuration: 10.0))
+    }
+
+    /// 별 효과 제거 (Phase 2.3)
+    private func removeStars() {
+        guard let stars = starsNode else { return }
+
+        // 페이드 아웃 후 제거
+        let fadeOut = SKAction.fadeOut(withDuration: 10.0)
+        let remove = SKAction.removeFromParent()
+        let sequence = SKAction.sequence([fadeOut, remove])
+
+        stars.run(sequence) { [weak self] in
+            self?.starsNode = nil
+        }
+    }
+
+    /// 구름 색상 업데이트 (Phase 2.3)
+    private func updateCloudsColor(for timeOfDay: TimeOfDay) {
+        let newColor = timeOfDay.cloudColor
+
+        for cloud in clouds {
+            let colorAction = SKAction.run {
+                cloud.fillColor = newColor
+            }
+            cloud.run(colorAction)
+        }
+    }
+
+    /// 날씨 효과 업데이트 (Phase 2.3)
+    private func updateWeatherEffects(_ weather: WeatherType) {
+        // 기존 날씨 파티클 제거
+        if let existingWeather = weatherParticleNode {
+            let fadeOut = SKAction.fadeOut(withDuration: 2.0)
+            let remove = SKAction.removeFromParent()
+            let sequence = SKAction.sequence([fadeOut, remove])
+            existingWeather.run(sequence)
+            weatherParticleNode = nil
+        }
+
+        // 새로운 날씨 효과 추가
+        switch weather {
+        case .clear:
+            // 맑음: 파티클 없음
+            break
+
+        case .cloudy:
+            // 흐림: 구름이 더 많아보이도록 (이미 구름이 있으므로 추가 효과 없음)
+            // 추후 구름 개수 증가 로직 추가 가능
+            break
+
+        case .rainy:
+            // 비: 빗방울 파티클
+            let rain = ParticleEffects.shared.createRainEffect(sceneSize: size)
+            weatherParticleNode = rain
+            addChild(rain)
+
+            // 페이드 인
+            rain.alpha = 0.0
+            rain.run(SKAction.fadeIn(withDuration: 2.0))
+
+        case .snowy:
+            // 눈: 눈송이 파티클
+            let snow = ParticleEffects.shared.createSnowEffect(sceneSize: size)
+            weatherParticleNode = snow
+            addChild(snow)
+
+            // 페이드 인
+            snow.alpha = 0.0
+            snow.run(SKAction.fadeIn(withDuration: 2.0))
+        }
     }
     
-    /// 떠다니는 구름 효과 추가
+    /// 떠다니는 구름 효과 추가 (Phase 2.3 개선)
     private func addFloatingClouds() {
-        let cloudCount = 3
-        
+        let cloudCount = 5  // 구름 개수 증가
+
         for i in 0..<cloudCount {
             let cloud = createCloud()
-            
+
             // 구름 위치 설정 (화면 상단 영역)
             let randomX = CGFloat.random(in: -size.width/2...size.width/2)
             let randomY = CGFloat.random(in: size.height/4...size.height/2)
             cloud.position = CGPoint(x: randomX, y: randomY)
-            
+
             // 구름 애니메이션 (천천히 좌우로 이동)
-            let moveAction = SKAction.moveBy(x: CGFloat.random(in: -50...50), y: 0, duration: TimeInterval.random(in: 8...15))
+            let moveDistance = CGFloat.random(in: -80...80)
+            let moveDuration = TimeInterval.random(in: 10...20)
+            let moveAction = SKAction.moveBy(x: moveDistance, y: 0, duration: moveDuration)
             let reverseAction = moveAction.reversed()
             let floatAction = SKAction.sequence([moveAction, reverseAction])
             let repeatAction = SKAction.repeatForever(floatAction)
-            
+
             cloud.run(repeatAction)
-            cloud.zPosition = -50
+            cloud.zPosition = -50 - CGFloat(i) * 2  // 깊이감 추가
+
+            // clouds 배열에 추가 (Phase 2.3)
+            clouds.append(cloud)
+
             addChild(cloud)
         }
     }
-    
-    /// 구름 모양 생성
+
+    /// 구름 모양 생성 (Phase 2.3 개선)
     private func createCloud() -> SKShapeNode {
         let cloudPath = CGMutablePath()
-        
+
         // 간단한 구름 모양 (3개의 원을 조합)
-        let centerRadius: CGFloat = 25
-        let sideRadius: CGFloat = 20
-        
+        let sizeMultiplier = CGFloat.random(in: 0.8...1.3)  // 크기 다양화
+        let centerRadius: CGFloat = 25 * sizeMultiplier
+        let sideRadius: CGFloat = 20 * sizeMultiplier
+
         cloudPath.addEllipse(in: CGRect(x: -centerRadius, y: -centerRadius/2, width: centerRadius*2, height: centerRadius))
         cloudPath.addEllipse(in: CGRect(x: -centerRadius*1.5, y: -sideRadius/2, width: sideRadius*2, height: sideRadius))
         cloudPath.addEllipse(in: CGRect(x: centerRadius*0.5, y: -sideRadius/2, width: sideRadius*2, height: sideRadius))
-        
+
         let cloud = SKShapeNode(path: cloudPath)
-        cloud.fillColor = UIColor.white.withAlphaComponent(0.7)
+
+        // 시간대별 색상 적용 (Phase 2.3)
+        cloud.fillColor = timeManager.currentTimeOfDay.cloudColor
         cloud.strokeColor = UIColor.clear
-        
+
         return cloud
     }
     

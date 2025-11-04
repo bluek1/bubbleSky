@@ -17,6 +17,8 @@ enum ParticleEffectType {
     case sunshine         // 햇빛 효과
     case confetti         // 축하 효과
     case megaSpecial      // 특수 효과 (UltraBig 합치기)
+    case rain             // 비 효과 (Phase 2.3)
+    case snow             // 눈 효과 (Phase 2.3)
 }
 
 /// 파티클 효과 관리 클래스
@@ -387,6 +389,144 @@ class ParticleEffects {
         let image = renderer.image { context in
             UIColor.white.setFill()
             context.fill(CGRect(origin: .zero, size: size))
+        }
+
+        return SKTexture(image: image)
+    }
+
+    // MARK: - Weather Effects (Phase 2.3)
+
+    /// 비 효과 생성
+    /// - Parameter sceneSize: 씬 크기
+    /// - Returns: 비 파티클 노드
+    func createRainEffect(sceneSize: CGSize) -> SKEmitterNode {
+        let rain = SKEmitterNode()
+
+        // 빗방울 텍스처 (작은 선)
+        rain.particleTexture = createRainDropTexture()
+
+        // 파티클 생성 설정
+        rain.particleBirthRate = 200
+        rain.particleLifetime = 3.0
+        rain.particleLifetimeRange = 1.0
+
+        // 발생 위치 (화면 상단 전체)
+        rain.position = CGPoint(x: 0, y: sceneSize.height / 2)
+        rain.particlePositionRange = CGVector(dx: sceneSize.width, dy: 0)
+
+        // 빗방울 움직임
+        rain.emissionAngle = .pi * 1.5  // 아래 방향
+        rain.emissionAngleRange = .pi * 0.1
+        rain.particleSpeed = 500
+        rain.particleSpeedRange = 100
+
+        // 빗방울 모양
+        rain.particleScale = 0.3
+        rain.particleScaleRange = 0.1
+        rain.particleRotation = 0
+        rain.particleRotationRange = 0
+
+        // 색상 및 투명도
+        rain.particleColor = UIColor(white: 0.7, alpha: 0.6)
+        rain.particleColorBlendFactor = 1.0
+        rain.particleAlpha = 0.6
+        rain.particleAlphaRange = 0.2
+        rain.particleAlphaSpeed = -0.2
+
+        // 물리 효과
+        rain.yAcceleration = -200  // 중력
+
+        rain.zPosition = -80  // 구름 앞, 배경 뒤
+
+        return rain
+    }
+
+    /// 빗방울 텍스처 생성
+    private func createRainDropTexture() -> SKTexture {
+        let size = CGSize(width: 4, height: 20)
+        let renderer = UIGraphicsImageRenderer(size: size)
+
+        let image = renderer.image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+        }
+
+        return SKTexture(image: image)
+    }
+
+    /// 눈 효과 생성
+    /// - Parameter sceneSize: 씬 크기
+    /// - Returns: 눈 파티클 노드
+    func createSnowEffect(sceneSize: CGSize) -> SKEmitterNode {
+        let snow = SKEmitterNode()
+
+        // 눈송이 텍스처
+        snow.particleTexture = createSnowflakeTexture()
+
+        // 파티클 생성 설정
+        snow.particleBirthRate = 50
+        snow.particleLifetime = 8.0
+        snow.particleLifetimeRange = 3.0
+
+        // 발생 위치 (화면 상단 전체)
+        snow.position = CGPoint(x: 0, y: sceneSize.height / 2)
+        snow.particlePositionRange = CGVector(dx: sceneSize.width, dy: 0)
+
+        // 눈송이 움직임
+        snow.emissionAngle = .pi * 1.5  // 아래 방향
+        snow.emissionAngleRange = .pi * 0.2
+        snow.particleSpeed = 80
+        snow.particleSpeedRange = 40
+
+        // 눈송이 모양
+        snow.particleScale = 0.4
+        snow.particleScaleRange = 0.2
+        snow.particleScaleSpeed = -0.02
+
+        // 회전
+        snow.particleRotation = 0
+        snow.particleRotationRange = .pi * 2
+        snow.particleRotationSpeed = 0.5
+
+        // 색상 및 투명도
+        snow.particleColor = .white
+        snow.particleColorBlendFactor = 1.0
+        snow.particleAlpha = 0.8
+        snow.particleAlphaRange = 0.2
+        snow.particleAlphaSpeed = -0.1
+
+        // 물리 효과 (좌우로 흔들림)
+        snow.xAcceleration = 10
+        snow.yAcceleration = -30  // 천천히 낙하
+
+        snow.zPosition = -80  // 구름 앞, 배경 뒤
+
+        return snow
+    }
+
+    /// 눈송이 텍스처 생성
+    private func createSnowflakeTexture() -> SKTexture {
+        let size = CGSize(width: 16, height: 16)
+        let renderer = UIGraphicsImageRenderer(size: size)
+
+        let image = renderer.image { context in
+            let path = UIBezierPath()
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let radius: CGFloat = 6
+
+            // 눈송이 모양 (6개의 선)
+            for i in 0..<6 {
+                let angle = CGFloat(i) * .pi / 3
+                let endX = center.x + cos(angle) * radius
+                let endY = center.y + sin(angle) * radius
+
+                path.move(to: center)
+                path.addLine(to: CGPoint(x: endX, y: endY))
+            }
+
+            UIColor.white.setStroke()
+            path.lineWidth = 2
+            path.stroke()
         }
 
         return SKTexture(image: image)
