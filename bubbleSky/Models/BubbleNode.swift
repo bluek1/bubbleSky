@@ -476,19 +476,21 @@ class BubbleNode: SKShapeNode {
         return BubbleNode(type: nextType)
     }
     
-    /// 비눗방울 충돌 시 변형 효과
+    /// 비눗방울 충돌 시 변형 효과 (탄성 시스템 활용)
     /// - Parameters:
     ///   - scaleX: X축 스케일
     ///   - scaleY: Y축 스케일
     func deform(scaleX: CGFloat, scaleY: CGFloat) {
-        let deformAction = SKAction.scaleX(to: scaleX, y: scaleY, duration: 0.1)
-        self.run(deformAction)
+        // 새로운 탄성 시스템 사용
+        applyElasticDeformation(scaleX: scaleX, scaleY: scaleY, impactDirection: nil)
     }
-    
-    /// 변형 효과 후 원래 크기로 복원
+
+    /// 변형 효과 후 원래 크기로 복원 (부드러운 탄성 복원)
     func resetDeform() {
-        let resetAction = SKAction.scale(to: 1.0, duration: 0.1)
-        self.run(resetAction)
+        // 탄성 복원 애니메이션
+        let resetAction = SKAction.scale(to: 1.0, duration: 0.15)
+        resetAction.timingMode = .easeOut
+        self.run(resetAction, withKey: "resetDeformation")
     }
     
     /// 풀링 시스템을 위한 리셋 메서드
@@ -584,7 +586,7 @@ class BubbleNode: SKShapeNode {
         // 나중에 파티클 효과 추가 예정
     }
     
-    /// 충돌 시 찌그러짐 효과
+    /// 충돌 시 찌그러짐 효과 (개선된 버전 - Phase 2.2.8)
     /// - Parameter impactDirection: 충돌 방향 벡터
     func showImpactDeformation(impactDirection: CGVector) {
         // 쿨다운 시간 확인 (무한 반복 방지)
@@ -593,46 +595,166 @@ class BubbleNode: SKShapeNode {
             return
         }
         lastImpactTime = currentTime
-        
+
         // 충돌 방향에 따른 찌그러짐 계산
         let impactMagnitude = sqrt(impactDirection.dx * impactDirection.dx + impactDirection.dy * impactDirection.dy)
-        
+
         // 임계값 이하의 약한 충돌은 무시
         guard impactMagnitude > 50.0 else { return }
-        
+
         let normalizedDirection = CGVector(dx: impactDirection.dx / impactMagnitude, dy: impactDirection.dy / impactMagnitude)
-        
-        // 찌그러짐 정도 (속도에 비례, 강도 감소)
-        let deformAmount = min(impactMagnitude * 0.0005, 0.15) // 최대 15%로 감소
-        
-        // 충돌 방향에 따른 X, Y 스케일 조정
-        let scaleX = 1.0 - (abs(normalizedDirection.dx) * deformAmount)
-        let scaleY = 1.0 - (abs(normalizedDirection.dy) * deformAmount)
-        
-        // 찌그러짐 애니메이션 (시간 단축)
-        let deformAction = SKAction.sequence([
-            SKAction.scaleX(to: scaleX, y: scaleY, duration: 0.05),
-            SKAction.scale(to: 1.0, duration: 0.08)
-        ])
-        
-        // 진동 효과 축소
-        let vibration = SKAction.sequence([
-            SKAction.moveBy(x: normalizedDirection.dx * 1, y: normalizedDirection.dy * 1, duration: 0.025),
-            SKAction.moveBy(x: -normalizedDirection.dx * 1, y: -normalizedDirection.dy * 1, duration: 0.025)
-        ])
-        
+
+        // 찌그러짐 정도 (속도에 비례, 크기에 따라 차등 적용)
+        let sizeModifier = 1.0 / (bubbleType.radius / 30.0) // 작은 방울은 덜 변형
+        let deformAmount = min(impactMagnitude * 0.0006 * sizeModifier, 0.2) // 최대 20%
+
+        // 충돌 방향에 따른 X, Y 스케일 조정 (더 자연스러운 변형)
+        // 충돌 방향으로는 압축, 수직 방향으로는 확장 (비눗방울의 표면 장력 효과)
+        let compressX = 1.0 - (abs(normalizedDirection.dx) * deformAmount)
+        let compressY = 1.0 - (abs(normalizedDirection.dy) * deformAmount)
+        let expandX = 1.0 + (abs(normalizedDirection.dy) * deformAmount * 0.5) // 수직 방향으로 확장
+        let expandY = 1.0 + (abs(normalizedDirection.dx) * deformAmount * 0.5)
+
+        let finalScaleX = compressX * expandX
+        let finalScaleY = compressY * expandY
+
+        // 표면 장력 시뮬레이션 (Phase 2.2.9)
+        applyElasticDeformation(scaleX: finalScaleX, scaleY: finalScaleY, impactDirection: normalizedDirection)
+    }
+
+    /// 탄성 변형 애니메이션 적용 (Phase 2.2.9 & 2.2.10)
+    /// - Parameters:
+    ///   - scaleX: X축 스케일
+    ///   - scaleY: Y축 스케일
+    ///   - impactDirection: 충돌 방향 (옵셔널)
+    private func applyElasticDeformation(scaleX: CGFloat, scaleY: CGFloat, impactDirection: CGVector? = nil) {
+        // 표면 장력 매개변수 (비눗방울 특성 반영)
+        let surfaceTension: CGFloat = 0.7 // 표면 장력 강도 (0~1)
+        let elasticRebound: CGFloat = 0.12 // 탄성 반발 강도
+
+        // 1단계: 찌그러짐 (빠른 압축)
+        let deformDuration: TimeInterval = 0.04
+        let deformAction = SKAction.scaleX(to: scaleX, y: scaleY, duration: deformDuration)
+        deformAction.timingMode = .easeIn
+
+        // 2단계: 과도한 복원 (탄성으로 원래보다 약간 초과)
+        let overRebound: CGFloat = 1.0 + elasticRebound
+        let reboundX = 1.0 + (1.0 - scaleX) * elasticRebound
+        let reboundY = 1.0 + (1.0 - scaleY) * elasticRebound
+        let reboundDuration: TimeInterval = 0.12
+        let reboundAction = SKAction.scaleX(to: reboundX, y: reboundY, duration: reboundDuration)
+        reboundAction.timingMode = .easeOut
+
+        // 3단계: 작은 진동 (표면 장력에 의한 진동)
+        let oscillationCount = 2
+        var oscillations: [SKAction] = []
+
+        for i in 0..<oscillationCount {
+            let dampingFactor = 1.0 - CGFloat(i) / CGFloat(oscillationCount) // 감쇠
+            let oscillationAmount = elasticRebound * 0.3 * dampingFactor
+
+            let oscillateDuration: TimeInterval = 0.08 / Double(i + 1)
+
+            // 축소
+            let shrinkAction = SKAction.scaleX(to: 1.0 - oscillationAmount * 0.5,
+                                               y: 1.0 - oscillationAmount * 0.5,
+                                               duration: oscillateDuration)
+            shrinkAction.timingMode = .easeInEaseOut
+
+            // 확대
+            let expandAction = SKAction.scaleX(to: 1.0 + oscillationAmount * 0.3,
+                                               y: 1.0 + oscillationAmount * 0.3,
+                                               duration: oscillateDuration)
+            expandAction.timingMode = .easeInEaseOut
+
+            oscillations.append(shrinkAction)
+            oscillations.append(expandAction)
+        }
+
+        // 4단계: 최종 안정화 (Phase 2.2.10 - 탄성 복원)
+        let stabilizeDuration: TimeInterval = 0.1
+        let stabilizeAction = SKAction.scale(to: 1.0, duration: stabilizeDuration)
+        stabilizeAction.timingMode = .easeOut
+
+        // 전체 변형 시퀀스
+        var sequence: [SKAction] = [deformAction, reboundAction]
+        sequence.append(contentsOf: oscillations)
+        sequence.append(stabilizeAction)
+
+        let elasticSequence = SKAction.sequence(sequence)
+
+        // 약한 진동 효과 (옵셔널)
+        var combinedActions: [SKAction] = [elasticSequence]
+
+        if let direction = impactDirection {
+            let vibrationStrength: CGFloat = 0.8
+            let vibration = SKAction.sequence([
+                SKAction.moveBy(x: direction.dx * vibrationStrength,
+                               y: direction.dy * vibrationStrength,
+                               duration: 0.02),
+                SKAction.moveBy(x: -direction.dx * vibrationStrength * 0.5,
+                               y: -direction.dy * vibrationStrength * 0.5,
+                               duration: 0.02),
+                SKAction.moveBy(x: direction.dx * vibrationStrength * 0.25,
+                               y: direction.dy * vibrationStrength * 0.25,
+                               duration: 0.02),
+                SKAction.move(to: position, duration: 0.02) // 원위치
+            ])
+            combinedActions.append(vibration)
+        }
+
         // 동시 실행
-        let impactEffect = SKAction.group([deformAction, vibration])
-        self.run(impactEffect)
+        let impactEffect = SKAction.group(combinedActions)
+        self.run(impactEffect, withKey: "elasticDeformation")
     }
     
-    /// 공간 압박 시 방울 형태 변형 (비활성화됨 - 자연스러운 물리 상호작용을 위해)
+    /// 공간 압박 시 방울 형태 변형 (Phase 2.2.9 - 표면 장력 시뮬레이션)
     /// - Parameters:
     ///   - availableSpace: 사용 가능한 공간 크기
     ///   - pressureDirection: 압력 방향 (x: 수평, y: 수직)
     func adaptToSpaceConstraints(availableSpace: CGSize, pressureDirection: CGVector) {
-        // 형태 변형 비활성화 - 물리 엔진에만 의존
-        return
+        let currentSize = CGSize(width: originalRadius * 2, height: originalRadius * 2)
+
+        // 압박 정도 계산
+        let spaceRatioX = availableSpace.width / currentSize.width
+        let spaceRatioY = availableSpace.height / currentSize.height
+
+        // 압박이 심한 경우에만 변형 (공간이 85% 미만일 때)
+        guard spaceRatioX < 0.85 || spaceRatioY < 0.85 else {
+            // 공간이 충분하면 정상 형태로 복원
+            if isCompressed {
+                restoreNormalShape()
+            }
+            return
+        }
+
+        isCompressed = true
+
+        // 압력 방향에 따른 변형 계산
+        let pressureMagnitude = sqrt(pressureDirection.dx * pressureDirection.dx + pressureDirection.dy * pressureDirection.dy)
+
+        if pressureMagnitude > 0 {
+            // 압력 방향으로 압축, 수직 방향으로 확장
+            let normalizedPressure = CGVector(dx: pressureDirection.dx / pressureMagnitude,
+                                             dy: pressureDirection.dy / pressureMagnitude)
+
+            // 변형 계산 (표면 장력으로 인한 제한된 변형)
+            let maxDeformation: CGFloat = 0.25 // 최대 25% 변형
+            let deformX = max(0.75, min(1.0, spaceRatioX))
+            let deformY = max(0.75, min(1.0, spaceRatioY))
+
+            // 압력 방향 반영
+            let finalDeformX = 1.0 - (1.0 - deformX) * abs(normalizedPressure.dx)
+            let finalDeformY = 1.0 - (1.0 - deformY) * abs(normalizedPressure.dy)
+
+            currentDeformation = CGPoint(x: finalDeformX, y: finalDeformY)
+            updateShape()
+        } else {
+            // 압력 방향 없이 균등한 압축
+            let uniformDeform = min(spaceRatioX, spaceRatioY)
+            currentDeformation = CGPoint(x: uniformDeform, y: uniformDeform)
+            updateShape()
+        }
     }
     
     /// 방울 모양을 현재 변형 상태에 맞게 업데이트
